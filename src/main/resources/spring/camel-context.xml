@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring       http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <bean class="org.apache.camel.component.kafka.KafkaComponent" id="kafka">
+        <property name="brokers" value="${bootstrap.server}"/>
+    </bean>
+
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+
+<!--        Consumes topic-->
+        <route id="consumer-route" streamCache="true">
+            <from id="kafka-consumer"
+                  uri="kafka:my-topic"/>
+            <log id="topic-log" message="consumer >>> ${body}"/>
+
+<!--            Prepare payload to be sent to Seldon URL-->
+            <log id="brms_route_log" message="ML Flow with header incoming >>> ${body}"/>
+            <to id="prepare_payload_seldon" uri="bean:brmsBean?method=preparePayloadSeldon"/>
+            <setHeader headerName="CamelHttpMethod" id="_setHeader_seldon_1">
+                <constant>POST</constant>
+            </setHeader>
+            <setHeader headerName="Exchange.CONTENT_TYPE" id="_setHeader_seldon_2">
+                <constant>application/json</constant>
+            </setHeader>
+            <setHeader headerName="CamelHttpPath">
+                <constant>/api/v1.0/predictions</constant>
+            </setHeader>
+
+<!--            Routes the payload to Seldon URL-->
+            <log id="brms_route_log1" message="ML Flow with new body >>> ${body}"/>
+            <log id="_mqtt_log_header" message="header:  ${headers}"/>
+            <to id="to_ml_flow" uri="https://{{mlflow.url}}"/>
+
+<!--            Receives the score and prepare the payload to be sent to DM-->
+            <log id="incoming_ml_flow_log" message="ML Flow incoming >>> ${body}"/>
+            <to id="prepare_payload_dm" uri="bean:brmsBean?method=preparePayloadDm"/>
+            <setHeader headerName="CamelHttpMethod" id="_setHeader_dm_1">
+                <constant>POST</constant>
+            </setHeader>
+            <setHeader headerName="Exchange.CONTENT_TYPE" id="_setHeader_dm_2">
+                <constant>application/json</constant>
+            </setHeader>
+            <setHeader headerName="CamelHttpPath">
+                <constant>/services/rest/server/containers/instances/drl-fraud</constant>
+            </setHeader>
+
+<!--            Routes the payload to DM-->
+            <to id="send_payload" uri="http://{{brms.url}}?authMethod=Basic&amp;authPassword={{brms.password}}&amp;authUsername={{brms.username}}"/>
+            <log id="incoming_dm_log" message="DM incoming >>> ${body}"/>
+
+<!--            Receives the result and extract the score and status-->
+            <to id="receive_dm_payload" uri="bean:brmsBean?method=extractValue"/>
+
+<!--            If Status is true, send to web notification-->
+            <when>
+                <simple>${header.SCORE_STATUS} == 'True'</simple>
+                <setHeader headerName="CamelHttpMethod" id="_setHeader_web_1">
+                    <constant>PUT</constant>
+                </setHeader>
+                <setHeader headerName="CamelHttpPath">
+                    <constant>/api/send</constant>
+                </setHeader>
+                <log id="_mqtt_log_header" message="header:  ${headers}"/>
+                <to id="send_notification" uri="http://{webserversvc.url}"/>
+            </when>
+        </route>
+
+    </camelContext>
+
+    <bean class="com.redhat.kafkademo.BrmsBean" id="brmsBean"/>
+</beans>
