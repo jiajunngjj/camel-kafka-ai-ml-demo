@@ -30,7 +30,7 @@
 <!--            Routes the payload to Seldon URL-->
             <log id="brms_route_log1" message="ML Flow with new body >>> ${body}"/>
             <log id="_mqtt_log_header" message="header:  ${headers}"/>
-            <to id="to_ml_flow" uri="https://{{seldon.url}}"/>
+            <to id="to_ml_flow" uri="{{seldon.url}}"/>
 
 <!--            Receives the score and prepare the payload to be sent to DM-->
             <log id="incoming_ml_flow_log" message="ML Flow incoming >>> ${body}"/>
