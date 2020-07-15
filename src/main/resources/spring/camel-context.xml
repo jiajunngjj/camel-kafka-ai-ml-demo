@@ -46,7 +46,7 @@
             </setHeader>
 
 <!--            Routes the payload to DM-->
-            <to id="send_payload" uri="http://{{brms.url}}?authMethod=Basic&amp;authPassword={{brms.password}}&amp;authUsername={{brms.username}}"/>
+            <to id="send_payload" uri="http://{{brms.url}}?authMethod=Basic&amp;authPassword={{brms.password}}&amp;authUsername={{brms.user}}"/>
             <log id="incoming_dm_log" message="DM incoming >>> ${body}"/>
 
 <!--            Receives the result and extract the score and status-->
