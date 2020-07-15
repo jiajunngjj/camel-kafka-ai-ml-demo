@@ -62,7 +62,7 @@
                     <constant>/api/send</constant>
                 </setHeader>
                 <log id="_mqtt_log_header" message="header:  ${headers}"/>
-                <to id="send_notification" uri="http://{{web.notification.url}}"/>
+                <to id="send_notification" uri="{{web.notification.url}}"/>
             </when>
         </route>
 
