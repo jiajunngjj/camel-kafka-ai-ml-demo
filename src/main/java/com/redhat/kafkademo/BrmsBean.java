@@ -73,6 +73,6 @@ public class BrmsBean {
         exchg.getIn().setHeader("SCORE_STATUS", status);
 
         log.info(status);
-        return status;
+        return "status: " + status + ", score: " + score;
     }
 }
