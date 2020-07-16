@@ -11,7 +11,7 @@
 <!--        Consumes topic-->
         <route id="consumer-route" streamCache="true">
             <from id="kafka-consumer"
-                  uri="kafka:my-topic"/>
+                  uri="kafka:{{workshop.user.id}}-prod"/>
             <log id="topic-log" message="consumer >>> ${body}"/>
 
 <!--            Prepare payload to be sent to Seldon URL-->
@@ -30,7 +30,7 @@
 <!--            Routes the payload to Seldon URL-->
             <log id="brms_route_log1" message="ML Flow with new body >>> ${body}"/>
             <log id="_mqtt_log_header" message="header:  ${headers}"/>
-            <to id="to_ml_flow" uri="https://{{mlflow.url}}"/>
+            <to id="to_ml_flow" uri="{{seldon.url}}"/>
 
 <!--            Receives the score and prepare the payload to be sent to DM-->
             <log id="incoming_ml_flow_log" message="ML Flow incoming >>> ${body}"/>
@@ -46,7 +46,7 @@
             </setHeader>
 
 <!--            Routes the payload to DM-->
-            <to id="send_payload" uri="http://{{brms.url}}?authMethod=Basic&amp;authPassword={{brms.password}}&amp;authUsername={{brms.username}}"/>
+            <to id="send_payload" uri="http://{{brms.url}}?authMethod=Basic&amp;authPassword={{brms.password}}&amp;authUsername={{brms.user}}"/>
             <log id="incoming_dm_log" message="DM incoming >>> ${body}"/>
 
 <!--            Receives the result and extract the score and status-->
@@ -62,7 +62,7 @@
                     <constant>/api/send</constant>
                 </setHeader>
                 <log id="_mqtt_log_header" message="header:  ${headers}"/>
-                <to id="send_notification" uri="http://{webserversvc.url}"/>
+                <to id="send_notification" uri="{{web.notification.url}}"/>
             </when>
         </route>
 
