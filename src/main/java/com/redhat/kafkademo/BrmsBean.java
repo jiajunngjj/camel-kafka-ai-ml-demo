@@ -4,6 +4,7 @@ import com.google.gson.*;
 import org.apache.camel.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.camel.TypeConversionException;
 
 public class BrmsBean {
     Logger log=LoggerFactory.getLogger(getClass());
@@ -13,16 +14,45 @@ public class BrmsBean {
         System.out.println("seldon BODY: " + body);
         System.out.println("seldon exchg: " + exchg);
 
-        String strNew = body.replace("\"", "");
+        // Strip square brackets
+        int index = body.indexOf("[");
+        if (index != -1) {
+            body = body.substring(index+1);
+        }
+        index = body.lastIndexOf("]");
+        if (index != -1) {
+            body = body.substring(0, index);
+        }
 
-        String s1 = strNew.substring(strNew.indexOf(" ")+1);
+        String[] elements = body.split(",");
+        // Strip quotes
+        for (int i=0; i<elements.length; i++) {
+            String elem = elements[i];
+            index = elem.indexOf("\"");
+            if (index == -1) continue;
+            elem = elem.substring(index+1);
+            index = elem.lastIndexOf("\"");
+            if (index == -1) continue;
+            elem = elem.substring(0, index);
+            elements[i] = elem;
+        }
 
-        String s2 = s1.substring(0,s1.lastIndexOf(","));
+        // customer ID is in elements[0]
+        if (elements.length > 0) {
+            exchg.getMessage().setHeader("CustomerID", elements[0]);
+        }
 
-        String payload = "{\"data\": {\"ndarray\": [ [" + s2 + "] ]}}";
+        StringBuffer sb = new StringBuffer();
+        sb.append("{\"data\": {\"ndarray\": [ [");
 
-        return payload;
+        for (int i=1; i<elements.length-1; i++) {
+            if (i > 1) sb.append(", ");
+            sb.append(elements[i]);
+        }
 
+        sb.append("] ]}}");
+
+        return sb.toString();
     }
 
     public String preparePayloadDm(String body, Exchange exchg) {
@@ -65,14 +95,20 @@ public class BrmsBean {
                 .getAsJsonObject().get("com.myspace.drl_fraud.Result")
                 .getAsJsonObject();
 
+        String customerID = null;
+        try {
+            customerID = exchg.getMessage().getHeader("CustomerID", String.class);
+        } catch (TypeConversionException e) {}
+
         String status=data.get("status")!=JsonNull.INSTANCE?data.get("status").getAsString():"";
         String score=data.get("score")!=JsonNull.INSTANCE?data.get("score").getAsString():"";
+        System.out.println("customer ID: " + customerID);
         System.out.println("score: " + score);
         System.out.println("status: " + status);
 
         exchg.getIn().setHeader("SCORE_STATUS", status);
 
         log.info(status);
-        return "status: " + status + ", score: " + score;
+        return "customer ID: " + customerID + ", status: " + status + ", score: " + score;
     }
 }
